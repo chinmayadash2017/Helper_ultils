@@ -4,6 +4,8 @@ Created on Tue Oct 23 01:29:55 2018
 
 @author: chinmaya
 """
+import numpy as np
+
 # Convert the categorical variable to binary values(0,1 like true, false)
 def categorical_2_binary(dframe, cat_feature = None, flag = True):
     import pandas as pd
@@ -172,7 +174,7 @@ def decision_tree_create(data, features, target, current_depth = 0, max_depth = 
         return create_leaf(target_values)
 
     # Find the best splitting feature (recall the function best_splitting_feature implemented above)
-    ## YOUR CODE HERE
+
     splitting_feature = best_splitting_feature(data, remaining_features, target)
     
     # Split on the best feature that we found. 
@@ -188,12 +190,12 @@ def decision_tree_create(data, features, target, current_depth = 0, max_depth = 
         return create_leaf(left_split[target])
     if len(right_split) == len(data):
         print ("Creating leaf node.")
-        ## YOUR CODE HERE
+
         return create_leaf(right_split[target])
         
     # Repeat (recurse) on left and right subtrees
     left_tree = decision_tree_create(left_split, remaining_features, target, current_depth + 1, max_depth)        
-    ## YOUR CODE HERE
+
     right_tree = decision_tree_create(right_split, remaining_features, target, current_depth + 1, max_depth)
 
     return {'is_leaf'          : False, 
@@ -202,4 +204,52 @@ def decision_tree_create(data, features, target, current_depth = 0, max_depth = 
             'left'             : left_tree,
             'right'            : right_tree}
     
+# Making predictions with a decision tree
+def classify(tree, x, annotate = False):
+    # if the node is a leaf node.
+    if tree['is_leaf']:
+        if annotate:
+             print ("At leaf, predicting %s" % tree['prediction'])
+        return tree['prediction']
+    else:
+        # split on feature.
+        split_feature_value = x[tree['splitting_feature']]
+        if annotate:
+             print ("Split on %s = %s" % (tree['splitting_feature'], split_feature_value))
+        if split_feature_value == 0:
+            return classify(tree['left'], x, annotate)
+        else:
+            ### YOUR CODE HERE
+            return classify(tree['right'], x, annotate)
 
+# This function should return a prediction (class label) for each row in data using the decision tree
+def evaluate_classification_error(tree, data):
+    # Apply the classify(tree, x) to each row in your data
+    prediction = data.apply(lambda x: classify(tree, x), axis=1)
+    
+    # Once you've made the predictions, calculate the classification error and return it
+    ## YOUR CODE HERE
+    
+    return (data['safe_loans'] != np.array(prediction)).values.sum() *1. / len(data)
+
+
+# print out a single decision stump
+def print_stump(tree, name = 'root'):
+    split_name = tree['splitting_feature'] # split_name is something like 'term. 36 months'
+    if split_name is None:
+        print ("(leaf, label: %s)" % tree['prediction'])
+        return None
+    split_feature, split_value = split_name.split('_',1)
+    print ('                       %s' % name)
+    print ('         |---------------|----------------|')
+    print ('         |                                |')
+    print ('         |                                |')
+    print ('         |                                |')
+    print ('  [{0} == 0]               [{0} == 1]    '.format(split_name))
+    print ('         |                                |')
+    print ('         |                                |')
+    print ('         |                                |')
+    print ('    (%s)                         (%s)' \
+        % (('leaf, label: ' + str(tree['left']['prediction']) if tree['left']['is_leaf'] else 'subtree'),
+           ('leaf, label: ' + str(tree['right']['prediction']) if tree['right']['is_leaf'] else 'subtree')))
+    
