@@ -138,6 +138,15 @@ def create_leaf(target_values):
     # Return the leaf node
     return leaf
 
+# Early stopping condition 2: Minimum node size
+def reached_minimum_node_size(data, min_node_size):
+    # Return True if the number of data points is less than or equal to the minimum node size.
+    return len(data) <= min_node_size
+
+# Early stopping condition: Minimum gain in error reduction
+def error_reduction(error_before_split, error_after_split):
+    # Return the error before the split minus the error after the split.
+    return error_before_split - error_after_split
 
 # decision tree recursively and implements 3 stopping conditions
 # Stopping condition 1: All data points in a node are from the same class.
@@ -145,41 +154,40 @@ def create_leaf(target_values):
 # Additional stopping condition: In addition to the above two stopping conditions covered in lecture,
 # in this assignment we will also consider a stopping condition based on the max_depth of the tree.
 # By not letting the tree grow too deep, we will save computational effort in the learning process
-def decision_tree_create(data, features, target, current_depth = 0, max_depth = 10, min_node_size=1, min_error_reduction=0.0):
+def decision_tree_create(data, features, target, current_depth = 0, 
+                         max_depth = 10, min_node_size=1, 
+                         min_error_reduction=0.0):
+    
     remaining_features = features[:] # Make a copy of the features.
     
     target_values = data[target]
     print ("--------------------------------------------------------------------")
     print ("Subtree, depth = %s (%s data points)." % (current_depth, len(target_values)))
     
-
-    # Stopping condition 1
-    # (Check if there are mistakes at current node.
-    # Recall you wrote a function intermediate_node_num_mistakes to compute this.)
+    
+    # Stopping condition 1: All nodes are of the same type.
     if intermediate_node_num_mistakes(target_values) == 0:
-        print ("Stopping condition 1 reached.")     
-        # If not mistakes at current node, make current node a leaf node
+        print ("Stopping condition 1 reached. All data points have the same target value.")                
         return create_leaf(target_values)
     
-    # Stopping condition 2 (check if there are remaining features to consider splitting on)
+    # Stopping condition 2: No more features to split on.
     if remaining_features == []:
-        print ("Stopping condition 2 reached.")    
-        # If there are no remaining features to consider, make current node a leaf node
+        print ("Stopping condition 2 reached. No remaining features.")                
         return create_leaf(target_values)    
     
-    # Additional stopping condition (limit tree depth)
+    # Early stopping condition 1: Reached max depth limit.
     if current_depth >= max_depth:
-        print ("Reached maximum depth. Stopping for now.")
-        # If the max tree depth has been reached, make current node a leaf node
+        print ("Early stopping condition 1 reached. Reached maximum depth.")
         return create_leaf(target_values)
     
-    # If the number of data points is less than or equal to the minimum size, return a leaf
+    # Early stopping condition 2: Reached the minimum node size.
+    # If the number of data points is less than or equal to the minimum size, return a leaf.
     if reached_minimum_node_size(data, min_node_size):
         print ("Early stopping condition 2 reached. Reached minimum node size.")
         return create_leaf(target_values)
-    # Find the best splitting feature (recall the function best_splitting_feature implemented above)
 
-    splitting_feature = best_splitting_feature(data, remaining_features, target)
+    # Find the best splitting feature
+    splitting_feature = best_splitting_feature(data, features, target)
     
     # Split on the best feature that we found. 
     left_split = data[data[splitting_feature] == 0]
@@ -189,9 +197,6 @@ def decision_tree_create(data, features, target, current_depth = 0, max_depth = 
     # Calculate the error before splitting (number of misclassified examples 
     # divided by the total number of examples)
     error_before_split = intermediate_node_num_mistakes(target_values) / float(len(data))
-    remaining_features.remove(splitting_feature)
-    print ("Split on feature %s. (%s, %s)" % (\
-           splitting_feature, len(left_split), len(right_split)))
     
     # Calculate the error after splitting (number of misclassified examples 
     # in both groups divided by the total number of examples)
@@ -204,25 +209,26 @@ def decision_tree_create(data, features, target, current_depth = 0, max_depth = 
         print ("Early stopping condition 3 reached. Minimum error reduction.")
         return create_leaf(target_values)
     
-    # Create a leaf node if the split is "perfect"
-    if len(left_split) == len(data):
-        print ("Creating leaf node.")
-        return create_leaf(left_split[target])
-    if len(right_split) == len(data):
-        print ("Creating leaf node.")
-
-        return create_leaf(right_split[target])
-        
+    remaining_features.remove(splitting_feature)
+    print ("Split on feature %s. (%s, %s)" % (\
+                      splitting_feature, len(left_split), len(right_split)))
+    
+    
     # Repeat (recurse) on left and right subtrees
-    left_tree = decision_tree_create(left_split, remaining_features, target, current_depth + 1, max_depth)        
-
-    right_tree = decision_tree_create(right_split, remaining_features, target, current_depth + 1, max_depth)
-
+    left_tree = decision_tree_create(left_split, remaining_features, target, 
+                                     current_depth + 1, max_depth, min_node_size, min_error_reduction)        
+    
+    ## YOUR CODE HERE
+    right_tree = decision_tree_create(right_split, remaining_features, target, 
+                                     current_depth + 1, max_depth, min_node_size, min_error_reduction)
+    
+    
     return {'is_leaf'          : False, 
             'prediction'       : None,
             'splitting_feature': splitting_feature,
-            'left'             : left_tree,
+            'left'             : left_tree, 
             'right'            : right_tree}
+
     
 # Making predictions with a decision tree
 def classify(tree, x, annotate = False):
@@ -252,6 +258,20 @@ def evaluate_classification_error(tree, data):
     
     return (data['safe_loans'] != np.array(prediction)).values.sum() *1. / len(data)
 
+# return the classification error, other version of old (previous function)
+def new_evaluate_classification_error(tree, data):
+    # Apply the classify(tree, x) to each row in your data
+    data['prediction'] = [classify(tree,a) for a in data.to_dict(orient = 'records')]
+           
+    # Once you've made the predictions, calculate the classification error and return it
+    classification_error = round(float(sum(data['prediction'] != data['safe_loans']))/len(data),4)
+    return classification_error
+
+# count number of leafs (measure of complexity)
+def count_leaves(tree):
+    if tree['is_leaf']:
+        return 1
+    return count_leaves(tree['left']) + count_leaves(tree['right'])
 
 # print out a single decision stump
 def print_stump(tree, name = 'root'):
@@ -273,19 +293,6 @@ def print_stump(tree, name = 'root'):
         % (('leaf, label: ' + str(tree['left']['prediction']) if tree['left']['is_leaf'] else 'subtree'),
            ('leaf, label: ' + str(tree['right']['prediction']) if tree['right']['is_leaf'] else 'subtree')))
     
-# Early stopping condition: Minimum node size
-def reached_minimum_node_size(data, min_node_size):
-    # data: The data (from a node)
-    # The minimum number of data points that a node is allowed to split on, min_node_size
-    if len(data) <= min_node_size:
-        return True
-    else:
-        False
-        
-# Early stopping condition 3: Minimum gain in error reduction
-def error_reduction(error_before_split, error_after_split):
-    # Return the error before the split minus the error after the split.
-    return (error_before_split - error_after_split)
 
 if __name__ == "__main__":
     print(" all useful decision tree utility functions")
