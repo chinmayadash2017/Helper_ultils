@@ -1,4 +1,4 @@
-# Helper_ultils
+# Helper_ultils: Python files aid to ML and AI tasks
 
-Python files aid to ML and AI tasks. This repo assets are solely created my me and some are taken from open source leaning materials.
-These are plane python functions and procedures.
+Repo assets are solely created my me and some are taken from open source leaning materials.
+These are pure python functions and procedures just to help in actual ML and AI tasks. I am devloping these assets to work around ML and AI competition and projects.
